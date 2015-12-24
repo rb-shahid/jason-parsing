@@ -7,8 +7,10 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ListView;
 import android.widget.ProgressBar;
-import android.widget.TextView;
+
+import com.byteshaft.jsonparsing.models.MovieModel;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -21,19 +23,21 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     HttpURLConnection connection = null;
     BufferedReader reader = null;
-    TextView textView;
     ProgressBar progressBar;
+    ListView listView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        textView = (TextView) findViewById(R.id.text);
+        listView = (ListView) findViewById(R.id.listView);
         progressBar = (ProgressBar) findViewById(R.id.progressbar);
         progressBar.setVisibility(View.INVISIBLE);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -57,14 +61,14 @@ public class MainActivity extends AppCompatActivity {
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
 //            String url = "http://jsonparsing.parseapp.com/jsonData/moviesDemoItem.txt";
-            String moviesUrl = "http://jsonparsing.parseapp.com/jsonData/moviesDemoList.txt";
+            String moviesUrl = "http://jsonparsing.parseapp.com/jsonData/moviesData.txt";
             new MyTask().execute(moviesUrl);
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private class MyTask extends AsyncTask<String, String, String> {
+    private class MyTask extends AsyncTask<String, String, List<MovieModel>> {
 
         @Override
         protected void onPreExecute() {
@@ -72,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        protected String doInBackground(String... params) {
+        protected List<MovieModel> doInBackground(String... params) {
             try {
                 URL url = new URL(params[0]);
                 connection = (HttpURLConnection) url.openConnection();
@@ -91,14 +95,31 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject jsonObject = new JSONObject(finalString);
                 JSONArray jsonArray = jsonObject.getJSONArray("movies");
 
+                List<MovieModel> movieModelList = new ArrayList<>();
+
                 for (int i = 0; i<jsonArray.length() ; i++) {
                     JSONObject jsonObjectFinal = jsonArray.getJSONObject(i);
+                    MovieModel movieModel = new MovieModel();
+                    movieModel.setMovie(jsonObjectFinal.getString("movie"));
+                    movieModel.setYear(jsonObjectFinal.getInt("year"));
+                    movieModel.setRating((float) jsonObjectFinal.getDouble("rating"));
+                    movieModel.setDirector(jsonObjectFinal.getString("director"));
+                    movieModel.setDuration(jsonObjectFinal.getString("duration"));
+                    movieModel.setTagline(jsonObjectFinal.getString("tagline"));
+                    movieModel.setImage(jsonObjectFinal.getString("image"));
+                    movieModel.setStory(jsonObjectFinal.getString("story"));
 
-                    String movieName = jsonObjectFinal.getString("movie");
-                    int year = jsonObjectFinal.getInt("year");
-                    stringBuffer.append(movieName + " was released in " + year + "\n");
+                    List<MovieModel.Cast> castList = new ArrayList<>();
+                    for (int j = 0; j < jsonObjectFinal.getJSONArray("cast").length(); j++) {
+                        MovieModel.Cast cast = new MovieModel.Cast();
+                        castList.add(cast);
+                    }
+                    movieModel.setCastList(castList);
+                    movieModelList.add(movieModel);
+
+                    movieModel.getMovie();
                 }
-                return stringBuffer.toString();
+                return movieModelList;
 
             } catch (MalformedURLException e) {
                 e.printStackTrace();
@@ -122,10 +143,14 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
+        protected void onPostExecute(List<MovieModel> result) {
+            super.onPostExecute(result);
+//            System.out.println(result == null);
+            MovieAdaptor adaptor = new MovieAdaptor(getApplicationContext(), R.layout.row, result);
+//            System.out.println(adaptor == null);
+//            System.out.println(listView == null);
+            listView.setAdapter(adaptor);
             progressBar.setVisibility(View.INVISIBLE);
-            textView.setText(s);
         }
     }
 }
